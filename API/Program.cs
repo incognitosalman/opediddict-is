@@ -5,20 +5,21 @@ using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllers();
 // Register the OpenIddict validation components.
 builder.Services.AddOpenIddict()
     .AddValidation(options =>
     {
         // Note: the validation handler uses OpenID Connect discovery
         // to retrieve the address of the introspection endpoint.
-        options.SetIssuer("https://localhost:5001/");
-        options.AddAudiences("resource_server_1");
+        options.SetIssuer(builder.Configuration["Authority"]);
+        options.AddAudiences(builder.Configuration["ProductApi:Name"]);
 
         // Configure the validation handler to use introspection and register the client
         // credentials used when communicating with the remote introspection endpoint.
         options.UseIntrospection()
-               .SetClientId("resource_server_1")
-               .SetClientSecret("846B62D0-DEF9-4215-A99D-86E6B8DAB342");
+               .SetClientId(builder.Configuration["ProductApi:ClientId"])
+               .SetClientSecret(builder.Configuration["ProductApi:ClientSecret"]);
 
         // Register the System.Net.Http integration.
         options.UseSystemNetHttp();
@@ -34,9 +35,13 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
+app.UseRouting();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/Api1", [Authorize] () => new string[] { "data1", "data2" });
-
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 app.Run();
