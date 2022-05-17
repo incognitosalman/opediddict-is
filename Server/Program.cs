@@ -4,21 +4,24 @@ using Server.Auth.Data;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<ServerDbContext>(options =>
 {
-                // Configure the context to use an SQL Server
+    // Configure the context to use an SQL Server
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 
-                // Register the entity sets needed by OpenIddict.
+    // Register the entity sets needed by OpenIddict.
     options.UseOpenIddict();
 });
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<ServerDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddDefaultUI();
 
 builder.Services.Configure<IdentityOptions>(options =>
 {
@@ -58,8 +61,8 @@ builder.Services.Configure<IdentityOptions>(options =>
 builder.Services.AddOpenIddict()
     .AddCore(options =>
     {
-                    // Configure OpenIddict to use the Entity Framework Core stores and models.
-                    // Note: call ReplaceDefaultEntities() to replace the default OpenIddict entities.
+        // Configure OpenIddict to use the Entity Framework Core stores and models.
+        // Note: call ReplaceDefaultEntities() to replace the default OpenIddict entities.
         options.UseEntityFrameworkCore()
                .UseDbContext<ServerDbContext>();
     })
@@ -67,12 +70,14 @@ builder.Services.AddOpenIddict()
     {
         // Enable the authorization, logout, token and userinfo endpoints.
         options.SetAuthorizationEndpointUris("/connect/authorize")
-               .SetLogoutEndpointUris("/connect/logout")
-               .SetTokenEndpointUris("/connect/token")
-               .SetUserinfoEndpointUris("/connect/userinfo");
+                  .SetLogoutEndpointUris("/connect/logout")
+                  .SetIntrospectionEndpointUris("/connect/introspect")
+                  .SetTokenEndpointUris("/connect/token")
+                  .SetUserinfoEndpointUris("/connect/userinfo")
+                  .SetVerificationEndpointUris("/connect/verify");
 
-        // Mark the "email", "profile", "roles", and "openid" scopes as supported scopes.
-        options.RegisterScopes(Scopes.Email, Scopes.Profile, Scopes.Roles, Scopes.OpenId);
+        // Mark the "email", "profile" and "roles" scopes as supported scopes.
+        options.RegisterScopes(Scopes.Email, Scopes.Profile, Scopes.Roles);
 
         // Note: this sample only uses the authorization code flow but you can enable
         // the other flows if you need to support implicit, password or client credentials.
@@ -122,7 +127,9 @@ app.UseAuthorization();
 
 app.UseEndpoints(endpoints =>
 {
+    endpoints.MapControllers();
     endpoints.MapDefaultControllerRoute();
+    endpoints.MapRazorPages();
 });
 
 app.Run();
