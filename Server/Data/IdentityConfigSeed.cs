@@ -21,6 +21,24 @@ namespace Server.Auth.Data
             IConfiguration config)
         {
             Console.WriteLine("Seeding database...");
+
+            // API
+            if (await manager.FindByClientIdAsync("resource_server_1") == null)
+            {
+                var descriptor = new OpenIddictApplicationDescriptor
+                {
+                    ClientId = config["Clients:ProductApi:ClientId"],
+                    ClientSecret = config["Clients:ProductApi:ClientSecret"],
+                    Permissions =
+                    {
+                        Permissions.Endpoints.Introspection
+                    },
+                    DisplayName = config["Clients:ProductApi:Name"],
+                };
+
+                await manager.CreateAsync(descriptor);
+            }
+
             if (await manager.FindByClientIdAsync(config["Clients:WebApp:ClientId"]) is null)
             {
                 await manager.CreateAsync(new OpenIddictApplicationDescriptor
@@ -29,27 +47,29 @@ namespace Server.Auth.Data
                     ClientSecret = config["Clients:WebApp:ClientSecret"],
                     RedirectUris =
                     {
-                        new Uri(config["Clients:WebApp:Url"])
+                        new Uri(config["Clients:WebApp:RedirectUri"])
                     },
                     PostLogoutRedirectUris = 
                     {
-                        new Uri(config["Clients:WebApp:PostLogoutRedirectUris"])
+                        new Uri(config["Clients:WebApp:PostLogoutRedirectUri"])
                     },
                     Permissions =
                     {
                         Permissions.Endpoints.Authorization,
+                        Permissions.Endpoints.Logout,
                         Permissions.Endpoints.Token,
                         Permissions.GrantTypes.AuthorizationCode,
                         Permissions.ResponseTypes.Code,
                         Permissions.Scopes.Email,
                         Permissions.Scopes.Profile,
                         Permissions.Scopes.Roles,
-                        Permissions.Prefixes.Scope + config["Clients:ProductApi:ClientId"],
-                        Permissions.Prefixes.Scope + config["Clients:UserApi:ClientId"]
+                        Permissions.Prefixes.Scope + config["Clients:ProductApi:ClientId"]
                     },
                     DisplayName = config["Clients:WebApp:Name"],
                 });
             }
+
+            Console.WriteLine("Database seeding completed...");
         }
 
     }
