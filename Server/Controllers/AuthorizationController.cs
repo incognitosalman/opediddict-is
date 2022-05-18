@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using Server.Auth.Helpers;
@@ -280,11 +281,57 @@ public class AuthorizationController : Controller
             });
     }
 
-    [HttpPost("~/connect/token"), Produces("application/json")]
+    private IEnumerable<string> GetDestinations(Claim claim, ClaimsPrincipal principal)
+    {
+        // Note: by default, claims are NOT automatically included in the access and identity tokens.
+        // To allow OpenIddict to serialize them, you must attach them a destination, that specifies
+        // whether they should be included in access tokens, in identity tokens or in both.
+
+        switch (claim.Type)
+        {
+            case Claims.Name:
+                yield return Destinations.AccessToken;
+
+                if (principal.HasScope(Scopes.Profile))
+                    yield return Destinations.IdentityToken;
+
+                yield break;
+
+            case Claims.Email:
+                yield return Destinations.AccessToken;
+
+                if (principal.HasScope(Scopes.Email))
+                    yield return Destinations.IdentityToken;
+
+                yield break;
+
+            case Claims.Role:
+                yield return Destinations.AccessToken;
+
+                if (principal.HasScope(Scopes.Roles))
+                    yield return Destinations.IdentityToken;
+
+                yield break;
+
+            // Never include the security stamp in the access and identity tokens, as it's a secret value.
+            case "AspNet.Identity.SecurityStamp": yield break;
+
+            default:
+                yield return Destinations.AccessToken;
+                yield break;
+        }
+    }
+
+    [HttpPost("~/connect/token")]
+    [Consumes("application/x-www-form-urlencoded")]
+    [Produces("application/json")]
     public async Task<IActionResult> Exchange()
     {
         var request = HttpContext.GetOpenIddictServerRequest() ??
             throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
+
+        if (request.IsPasswordGrantType())
+            return await TokensForPasswordGrantType(request);
 
         if (request.IsAuthorizationCodeGrantType() || request.IsRefreshTokenGrantType())
         {
@@ -331,44 +378,44 @@ public class AuthorizationController : Controller
         throw new InvalidOperationException("The specified grant type is not supported.");
     }
 
-    private IEnumerable<string> GetDestinations(Claim claim, ClaimsPrincipal principal)
+
+    private async Task<IActionResult> TokensForPasswordGrantType(OpenIddictRequest request)
     {
-        // Note: by default, claims are NOT automatically included in the access and identity tokens.
-        // To allow OpenIddict to serialize them, you must attach them a destination, that specifies
-        // whether they should be included in access tokens, in identity tokens or in both.
+        var user = await _userManager.FindByNameAsync(request.Username);
+        if (user == null)
+            return Unauthorized();
 
-        switch (claim.Type)
+        var signInResult = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+        if (signInResult.Succeeded)
         {
-            case Claims.Name:
-                yield return Destinations.AccessToken;
+            var identity = new ClaimsIdentity(
+                TokenValidationParameters.DefaultAuthenticationType,
+                Claims.Name,
+                Claims.Role);
 
-                if (principal.HasScope(Scopes.Profile))
-                    yield return Destinations.IdentityToken;
+            identity.AddClaim(Claims.Subject, user.Id.ToString(), Destinations.AccessToken);
+            identity.AddClaim(Claims.Username, user.UserName, Destinations.AccessToken);
+            // Add more claims if necessary
 
-                yield break;
+            //foreach (var userRole in user.UserRoles)
+            //{
+            //    identity.AddClaim(OpenIddictConstants.Claims.Role, 
+            //        userRole.Role.NormalizedName, 
+            //        OpenIddictConstants.Destinations.AccessToken);
+            //}
 
-            case Claims.Email:
-                yield return Destinations.AccessToken;
+            var claimsPrincipal = new ClaimsPrincipal(identity);
+            claimsPrincipal.SetScopes(new string[]
+            {
+                    Scopes.Roles,
+                    Scopes.OfflineAccess,
+                    Scopes.Email,
+                    Scopes.Profile,
+            });
 
-                if (principal.HasScope(Scopes.Email))
-                    yield return Destinations.IdentityToken;
-
-                yield break;
-
-            case Claims.Role:
-                yield return Destinations.AccessToken;
-
-                if (principal.HasScope(Scopes.Roles))
-                    yield return Destinations.IdentityToken;
-
-                yield break;
-
-            // Never include the security stamp in the access and identity tokens, as it's a secret value.
-            case "AspNet.Identity.SecurityStamp": yield break;
-
-            default:
-                yield return Destinations.AccessToken;
-                yield break;
+            return SignIn(claimsPrincipal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         }
+        else
+            return Unauthorized();
     }
 }

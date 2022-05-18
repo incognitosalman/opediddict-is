@@ -23,7 +23,7 @@ namespace Server.Auth.Data
             Console.WriteLine("Seeding database...");
 
             // API
-            if (await manager.FindByClientIdAsync("resource_server_1") == null)
+            if (await manager.FindByClientIdAsync(config["Clients:ProductApi:ClientId"]) == null)
             {
                 var descriptor = new OpenIddictApplicationDescriptor
                 {
@@ -31,7 +31,9 @@ namespace Server.Auth.Data
                     ClientSecret = config["Clients:ProductApi:ClientSecret"],
                     Permissions =
                     {
-                        Permissions.Endpoints.Introspection
+                        Permissions.Endpoints.Introspection,
+                        Permissions.Endpoints.Token,
+                        Permissions.GrantTypes.Password
                     },
                     DisplayName = config["Clients:ProductApi:Name"],
                 };
@@ -39,7 +41,7 @@ namespace Server.Auth.Data
                 await manager.CreateAsync(descriptor);
             }
 
-            if (await manager.FindByClientIdAsync(config["Clients:WebApp:ClientId"]) is null)
+            if (await manager.FindByClientIdAsync(config["Clients:WebApp:ClientId"]) == null)
             {
                 await manager.CreateAsync(new OpenIddictApplicationDescriptor
                 {
