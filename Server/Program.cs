@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Server.Auth.Data;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Server.Auth.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddRazorPages();
 builder.Services.AddControllersWithViews();
-
 builder.Services.AddDbContext<ServerDbContext>(options =>
 {
                 // Configure the context to use an SQL Server
@@ -18,7 +21,22 @@ builder.Services.AddDbContext<ServerDbContext>(options =>
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<ServerDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddSignInManager();
+
+builder.Services.AddOptions().AddLogging();
+builder.Services.TryAddScoped<IUserValidator<IdentityUser>, UserValidator<IdentityUser>>();
+builder.Services.TryAddScoped<IRoleValidator<IdentityRole>, RoleValidator<IdentityRole>>();
+builder.Services.TryAddScoped<IPasswordValidator<IdentityUser>, PasswordValidator<IdentityUser>>();
+builder.Services.TryAddScoped<IPasswordHasher<IdentityUser>, PasswordHasher<IdentityUser>>();
+builder.Services.TryAddScoped<ILookupNormalizer, UpperInvariantLookupNormalizer>();
+builder.Services.TryAddScoped<IUserConfirmation<IdentityUser>, DefaultUserConfirmation<IdentityUser>>();
+builder.Services.TryAddScoped<IdentityErrorDescriber>();
+builder.Services.TryAddScoped<IUserClaimsPrincipalFactory<IdentityUser>, UserClaimsPrincipalFactory<IdentityUser>>();
+builder.Services.TryAddScoped<UserManager<IdentityUser>>();
+builder.Services.TryAddScoped<RoleManager<IdentityRole>>();
+builder.Services.TryAddTransient<IEmailSender, EmailSender>();
+
 
 builder.Services.Configure<IdentityOptions>(options =>
 {
@@ -124,5 +142,5 @@ app.UseEndpoints(endpoints =>
 {
     endpoints.MapDefaultControllerRoute();
 });
-
+app.MapRazorPages();
 app.Run();
