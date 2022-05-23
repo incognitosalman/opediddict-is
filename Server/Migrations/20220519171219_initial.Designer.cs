@@ -12,8 +12,8 @@ using Server.Auth.Data;
 namespace Server.Auth.Migrations
 {
     [DbContext(typeof(ServerDbContext))]
-    [Migration("20220516193911_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20220519171219_initial")]
+    partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {

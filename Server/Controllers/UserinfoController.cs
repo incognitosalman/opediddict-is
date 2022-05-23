@@ -10,7 +10,7 @@ using OpenIddict.Server.AspNetCore;
 using Server.Auth.Data;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace Server.Auth.Controllers;
+namespace Velusia.Server.Controllers;
 
 public class UserinfoController : Controller
 {
