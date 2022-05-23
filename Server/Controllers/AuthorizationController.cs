@@ -329,6 +329,9 @@ public class AuthorizationController : Controller
     {
         var request = HttpContext.GetOpenIddictServerRequest() ??
             throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
+        
+        if (request.IsClientCredentialsGrantType())
+            return await TokensForPasswordGrantType(request);
 
         if (request.IsPasswordGrantType())
             return await TokensForPasswordGrantType(request);

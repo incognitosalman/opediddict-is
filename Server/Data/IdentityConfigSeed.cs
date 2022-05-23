@@ -33,7 +33,7 @@ namespace Server.Auth.Data
                     {
                         Permissions.Endpoints.Introspection,
                         Permissions.Endpoints.Token,
-                        Permissions.GrantTypes.Password
+                        Permissions.GrantTypes.ClientCredentials
                     },
                     DisplayName = config["Clients:ProductApi:Name"],
                 };
